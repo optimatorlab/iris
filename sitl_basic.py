@@ -128,16 +128,53 @@ class sitlSim():
         # Get Other Assets Info
         # .....
 
+        # Mission Flags
+        self.missionStart = False
+        self.hasMission = False
+        self.waitToUpdate = False
+        self.receivedMission = False
+        self.changingMode = False
+
+
         # Wait for mission / Load Mission
+        # Manual
+        while(not self.hasMission):
+            msg = {
+                'respAssetID': 0,
+                'target_system': [1001, 1001],
+                'target_component': [0, 0],
+                'seq': [1, 2],
+                'frame': [0, 0],
+                'command': [CMD_TAKEOFF, CMD_LAND],
+                'current': [1, 1],
+                'autocontinue': [1, 1],
+                'param1': [0, 0],
+                'param2': [0, 0],
+                'param3': [0, 0],
+                'param4': [0, 0],
+                'param5': [reqLat, reqLat],
+                'param6': [reqLon, reqLon],
+                'param7': [2, 0.25],
+                'status': [1, 1]
+            }
+            self.mission_info(msg)
+
+            if not self.hasMission:
+                time.sleep(2.0)
         
+        # self.mission[self.uav.uavID] = {
+        #     1: {'command': CMD_TAKEOFF, 'param1': 0, 'param2': 0, 'param3': 0, 'param4': 0, 'param5': latInit, 'param6': lonInit, 'param7': altInit},
+        #     2: {'command': CMD_NAV_WP, 'param1': 20, 'param2': 30, 'param3': 0, 'param4': 0, 'param5': 43.00013371535764, 'param6': -78.78793387603166 , 'param7': 145},
+        #     3: {'command': CMD_NAV_WP, 'param1': 20, 'param2': 30, 'param3': 0, 'param4': 0, 'param5': 42.99995385103645, 'param6': -78.78793387603166 , 'param7': 145}
+        # }
+
         self.uav.currentSeqID = 1
-        self.mission[self.uav.uavID] = {
-            1: {'command': CMD_TAKEOFF, 'param1': 0, 'param2': 0, 'param3': 0, 'param4': 0, 'param5': latInit, 'param6': lonInit, 'param7': altInit},
-            2: {'command': CMD_NAV_WP, 'param1': 20, 'param2': 30, 'param3': 0, 'param4': 0, 'param5': 43.00013371535764, 'param6': -78.78793387603166 , 'param7': 145},
-            3: {'command': CMD_NAV_WP, 'param1': 20, 'param2': 30, 'param3': 0, 'param4': 0, 'param5': 42.99995385103645, 'param6': -78.78793387603166 , 'param7': 145}
-        }
 
         while(True):
+            
+            while self.changingMode:
+                pass
+
             if self.uav.status == STATUS_INIT:
                 # Arm and Takeoff
                 print ">> Pre-arm checks"
@@ -306,7 +343,7 @@ class sitlSim():
         self.missionStart = True
 
         vi = self.myVehicleIndex
-        return make_uav(msg.assetID,
+        return make_uav(self.myVehicleIndex,
                     vehicle[vi].location.global_relative_frame.lat, 
                     vehicle[vi].location.global_relative_frame.lon, 
                     vehicle[vi].location.global_frame.alt, 
@@ -314,6 +351,25 @@ class sitlSim():
                     vi, 
                     CONTROL_MODE # msg.controlMode
                 )
+
+    def mission_info(self, msg):
+        # We're only going to listen for mission updates that either
+		# a) Come from a push from GCS (respAssetID == 0), or
+		# b) Come because we requested a mission (respAssetID == self.uav.uavID)
+        if msg['respAssetID'] in [0, self.uav.uavID]:
+            self.gotNewMission = True
+
+            while self.waitToUpdate:
+                print "mission waiting"
+                time.sleep(1)
+            
+            tmpAssetIDs = set(msg['target_system'])
+
+            for assetID in tmpAssetIDs:
+                self.mission[assetID] = {}
+                
+
+
 
 if __name__ == "__main__":
     sitlSim()
