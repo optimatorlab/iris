@@ -10,11 +10,61 @@ import sys
 
 vehicle      = {}
 BASE_PORT    = 5760
-ASSET_TYPE   = 'SITLapm'
+ASSET_TYPE   = 'actualUAV' # 'SITLapm'
 CONTROL_MODE = CTRL_MODE_GUIDED
+
+DEVICE = '/dev/ttyAMA0'
+BAUD = 921600
+
+# FIXME -- This should be a response from the GCS.
+# These coordinates cover most of the Buffalo region...way too big to be useful!
+GEOFENCE = [[43.086441866511805, -78.84681701660156], 
+            [42.98003720570486, -78.84475708007812], 
+            [42.97953485978903, -78.68133544921876], 
+            [43.090453524374716, -78.68545532226564]]
+ 
+
 
 def make_dict():
 	return defaultdict(make_dict)
+
+def geoIsPointInPoly(loc, poly):
+	"""
+	Determine if a point is inside a polygon.  Points that are along the perimeter of the polygon (including vertices) are considered to be "inside".
+
+	Parameters
+	----------
+	loc: list
+		The coordinate of the point, in [lat, lon] format
+	poly: list of lists
+		The polygon to check if the point is inside, in [[lat, lon], [lat, lon], ..., [lat, lon]] format
+	Returns
+	-------
+	boolean
+		The point is inside the polygon or not
+	"""
+
+	if (loc in poly):
+		return True
+
+	x = loc[1]
+	y = loc[0]
+	inside = False
+	j = len(poly) - 1
+	for i in range(0,len(poly)):
+		# Check if pt is in interior:
+		xi = poly[i][1]
+		yi = poly[i][0]
+		xj = poly[j][1]
+		yj = poly[j][0]
+		intersect = (yi > y) != (yj > y)
+		if (intersect):
+			intersect = (x < (xj - xi) * (y - yi) / float(yj - yi) + xi)
+		if (intersect):
+			inside = not inside
+		j = i
+		
+	return inside
 
 class make_uav():
     def __init__(self, assetType, uavID, swarmID, latInit, lonInit, altInit, headingInit, vehicleIndex, controlMode):
@@ -318,25 +368,39 @@ class sitlSim():
         self.getHomeLocation(vehicleIndex)
 
     def getHomeLocation(self, vehicleIndex):
+        # Future FIXME -- Add a time limit (e.g., GET_HOME_LIMIT = 30 seconds)
+        # Future FIXME -- Publish to a ROS topic to indicate our status.
+
         try:
             while not vehicle[vehicleIndex].home_location:
-                cmds = vehicle[vehicleIndex].commands
-                cmds.download()
-                cmds.wait_ready()
-                if not vehicle[vehicleIndex].home_location:
-                    print " Waiting for home location..."
-                
-                print "\n Home location: %s" % vehicle[vehicleIndex].home_location
+                if (vehicle[vehicleIndex].gps_0.fix_type < 3):
+                    print " Insufficient GPS fix_type, ", vehicle[vehicleIndex].gps_0.fix_type
+                    print " satellites_visible = ", vehicle[vehicleIndex].gps_0.satellites_visible;
+                else:
+                    print " Got 3D GPS Fix"
+                    print " satellites_visible = ", vehicle[vehicleIndex].gps_0.satellites_visible;
 
-                while not vehicle[vehicleIndex].location.global_frame.alt:
-                    print " Waiting for global alt"
-                    time.sleep(1)
-                
-                vehicle[vehicleIndex].home_location = vehicle[vehicleIndex].location.global_frame
+                    # We need the following 3 lines to be able to get the home_location:
+                    cmds = vehicle[vehicleIndex].commands
+                    cmds.download()
+                    cmds.wait_ready()
+                    if not vehicle[vehicleIndex].home_location:
+                        print " Waiting for home location..."
+                        if not vehicle[vehicleIndex].location.global_frame.alt:
+                            print " Waiting for global alt"
+                        else:    
+                            vehicle[vehicleIndex].home_location = vehicle[vehicleIndex].location.global_frame
+                            print "\n Home location: %s" % vehicle[vehicleIndex].home_location
+                            if (not geoIsPointInPoly([vehicle[vehicleIndex].home_location.lat, vehicle[vehicleIndex].home_location.lon], GEOFENCE)):
+                                print " ERROR: Home location is outside geofence."
+                                vehicle[vehicleIndex].home_location = None
 
-                print "\n Home location: %s" % vehicle[vehicleIndex].home_location
+                time.sleep(1)
+
         except:
             print "Could not get home location."
+            e = sys.exc_info()[1]
+            print(e)
             exit()
 
     def register_asset(self):
