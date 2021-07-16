@@ -109,7 +109,7 @@ class sitlSim():
         vehicleIndex = self.myVehicleIndex
         
         # Create Asset / Connect drone
-        reqLat, reqLon, reqAlt, reqHeading = self.createAsset(reqLat, reqLon, reqAlt, reqHeading)
+        self.createAsset(reqLat, reqLon, reqAlt, reqHeading)
 
         # print " Location: %s" % vehicle[vehicleIndex].location.global_frame
         # print " Battery: %s" % vehicle[vehicleIndex].battery
@@ -120,6 +120,7 @@ class sitlSim():
 
         # Register Asset / Create UAV object
         self.uav = self.register_asset()
+        print "Uav %d registered." % self.uav.uavID
         self.uav.status = STATUS_INIT
 
         # Create Targets
@@ -129,11 +130,10 @@ class sitlSim():
         # .....
 
         # Mission Flags
-        self.missionStart = False
+        # self.missionStart = False
         self.hasMission = False
-        self.waitToUpdate = False
-        self.receivedMission = False
-        self.changingMode = False
+        # self.waitToUpdate = False
+        # self.changingMode = False
 
 
         # Wait for mission / Load Mission
@@ -141,7 +141,7 @@ class sitlSim():
         while(not self.hasMission):
             msg = {
                 'respAssetID': 0,
-                'target_system': [1001, 1001],
+                'target_system': [0, 0],
                 'target_component': [0, 0],
                 'seq': [1, 2],
                 'frame': [0, 0],
@@ -160,78 +160,68 @@ class sitlSim():
             self.mission_info(msg)
 
             if not self.hasMission:
-                time.sleep(2.0)
-        
-        # self.mission[self.uav.uavID] = {
-        #     1: {'command': CMD_TAKEOFF, 'param1': 0, 'param2': 0, 'param3': 0, 'param4': 0, 'param5': latInit, 'param6': lonInit, 'param7': altInit},
-        #     2: {'command': CMD_NAV_WP, 'param1': 20, 'param2': 30, 'param3': 0, 'param4': 0, 'param5': 43.00013371535764, 'param6': -78.78793387603166 , 'param7': 145},
-        #     3: {'command': CMD_NAV_WP, 'param1': 20, 'param2': 30, 'param3': 0, 'param4': 0, 'param5': 42.99995385103645, 'param6': -78.78793387603166 , 'param7': 145}
-        # }
-
-        self.uav.currentSeqID = 1
+                time.sleep(1)
 
         while(True):
             
-            while self.changingMode:
-                pass
+            # while self.changingMode:
+            #     pass
+            
+            # if self.gotNewMission:
+            #     self.updatingMission = True
+            #     self.waitToUpdate = False
+            #     while self.updatingMission:
+            #         print "while loop waiting"
+            #         time.sleep(0.1)
+            # self.waitToUpdate = True
 
-            if self.uav.status == STATUS_INIT:
-                # Arm and Takeoff
-                print ">> Pre-arm checks"
-                while not vehicle[vehicleIndex].is_armable:
-                    print " Waiting for vehicle to initialise..."
-                    time.sleep(1)
-
-                while not vehicle[vehicleIndex].mode.name=='GUIDED':
-                    vehicle[vehicleIndex].mode = VehicleMode("GUIDED")
-                
-                print " Mode: %s" % vehicle[vehicleIndex].mode.name
-                
-                print ">> Disabling pre-arm checks"
-                vehicle[vehicleIndex].parameters["ARMING_CHECK"] = 0
-                time.sleep(1)
-
-                print ">> Arming motors"
-                vehicle[vehicleIndex].armed = True
-                while not vehicle[vehicleIndex].armed:
-                    print " Waiting for arming..."
-                    time.sleep(0.5)
-
-                print " Vehicle is armed: %s" % vehicle[vehicleIndex].armed
-
-                targetAlt = 5
-                print "Taking off from current alt of %f to target alt of %f" % ((vehicle[vehicleIndex].location.global_relative_frame.alt, targetAlt))
-                vehicle[vehicleIndex].simple_takeoff(targetAlt)
-                
-                self.uav.goalAlt = 5 
-
-                self.uav.status = STATUS_TAKEOFF
+            if self.uav.status == STATUS_INIT: # and self.missionStart
+                self.armAndTakeoff(self.mission[self.uav.uavID][self.uav.currentSeqID].param7)
 
             if self.uav.status > 0:
                 if self.uav.status == STATUS_TAKEOFF:
                     print "Alt: %f" % vehicle[vehicleIndex].location.global_relative_frame.alt
                     if (vehicle[vehicleIndex].location.global_relative_frame.alt + TAKEOFF_ALT_TOL >= self.uav.goalAlt):
                         print " Takeoff Completed"
-                        print " Location: %s" % vehicle[vehicleIndex].location.global_frame
+                        print " %s" % vehicle[vehicleIndex].location.global_frame
                         self.uav.currentSeqID += 1
                         self.uav.status = STATUS_READY
                 
                 elif self.uav.status == STATUS_READY:
                     if self.uav.currentSeqID in self.mission[self.uav.uavID]:
-                        if self.mission[self.uav.uavID][self.uav.currentSeqID]['command'] == CMD_NAV_WP:
 
-                            waitTime = self.mission[self.uav.uavID][self.uav.currentSeqID]['param1']
-                            self.uav.goalAcptRad = self.mission[self.uav.uavID][self.uav.currentSeqID]['param2']
-                            passRad = self.mission[self.uav.uavID][self.uav.currentSeqID]['param3']
-                            yaw = self.mission[self.uav.uavID][self.uav.currentSeqID]['param4']
-                            self.uav.goalLat = self.mission[self.uav.uavID][self.uav.currentSeqID]['param5']
-                            self.uav.goalLon = self.mission[self.uav.uavID][self.uav.currentSeqID]['param6']
-                            self.uav.goalAlt = self.mission[self.uav.uavID][self.uav.currentSeqID]['param7']
+                        if self.mission[self.uav.uavID][self.uav.currentSeqID].command == CMD_NAV_WP:
 
-                            vehicle[vehicleIndex].simple_goto(LocationGlobalRelative(self.uav.goalLat, self.uav.goalLon, self.uav.goalAlt), groundspeed=10)
+                            waitTime = self.mission[self.uav.uavID][self.uav.currentSeqID].param1
+                            self.uav.goalAcptRad = self.mission[self.uav.uavID][self.uav.currentSeqID].param2
+                            passRad = self.mission[self.uav.uavID][self.uav.currentSeqID].param3
+                            yaw = self.mission[self.uav.uavID][self.uav.currentSeqID].param4
+                            self.uav.goalLat = self.mission[self.uav.uavID][self.uav.currentSeqID].param5
+                            self.uav.goalLon = self.mission[self.uav.uavID][self.uav.currentSeqID].param6
+                            self.uav.goalAlt = self.mission[self.uav.uavID][self.uav.currentSeqID].param7
+                            
                             self.uav.status = STATUS_WP
+                            vehicle[vehicleIndex].simple_goto(LocationGlobalRelative(self.uav.goalLat, self.uav.goalLon, self.uav.goalAlt), groundspeed=10)
+                            
+                            self.mission[self.uav.uavID][self.uav.currentSeqID].status = 0
 
                             # vehicle[vehicleIndex].groundspeed = 30
+                        elif self.mission[self.uav.uavID][self.uav.currentSeqID].command == CMD_LAND:
+                            
+                            msg = vehicle[vehicleIndex].message_factory.command_long_encode(
+                                self.uav.uavID, 0, 
+                                mavutil.mavlink.MAV_CMD_NAV_LAND,
+                                0,
+                                0,0,0,0, # param 1-4 ignored
+                                0,
+                                0,
+                                self.mission[self.uav.uavID][self.uav.currentSeqID].param7,
+                            )
+                            vehicle[vehicleIndex].send_mavlink(msg)
+                            
+                            self.uav.status = STATUS_LANDING
+
+                            self.mission[self.uav.uavID][self.uav.currentSeqID].status = 0
 
                 elif self.uav.status == STATUS_WP:
 
@@ -246,8 +236,8 @@ class sitlSim():
                     # print "Lat: %f, Lon: %f, Alt: %f" % (lat2deg, lon2deg, alt2m)
                     print "SPEED: %s" % vehicle[vehicleIndex].parameters['WPNAV_SPEED']
                     print "GroundSpeed: %s" % vehicle[vehicleIndex].groundspeed
-                    print "AirSpeed: %s" % vehicle[vehicleIndex].airspeed
-                    print "Velocity: %s" % vehicle[vehicleIndex].velocity
+                    # print "AirSpeed: %s" % vehicle[vehicleIndex].airspeed
+                    # print "Velocity: %s" % vehicle[vehicleIndex].velocity
                     
                     dist2goal = distance_functions.getGPSdistance3D(lat1deg, lon1deg, alt1m, lat2deg, lon2deg, alt2m)
                     
@@ -256,9 +246,20 @@ class sitlSim():
                     if (dist2goal <= self.uav.goalAcptRad):
                         print "UAV %d: Completed WP task (seqID %d)" % (self.uav.uavID, self.uav.currentSeqID)
                         #self.logfile.write("%s, info, Completed WP task (seqID %d).  dist2goal = %f.  goalAcptRad = %f. \n" % (datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S'), self.uav.currentSeqID, dist2goal, self.uav.goalAcptRad))
-
+                        self.mission[self.uav.uavID][self.uav.currentSeqID].status = -1
                         self.uav.currentSeqID += 1	
                         self.uav.status = STATUS_READY
+                
+                elif self.uav.status == STATUS_LANDING:
+                    print "Alt: %f" % vehicle[vehicleIndex].location.global_relative_frame.alt
+                    dist2target = vehicle[vehicleIndex].location.global_relative_frame.alt
+                    if dist2target < LAND_ALT_TOL:
+                        print " Landing Completed."
+                        print " %s" % vehicle[vehicleIndex].location.global_frame
+                        self.mission[self.uav.uavID][self.uav.currentSeqID].status = -1
+                        self.uav.currentSeqID += 1
+                        self.uav.status = STATUS_READY
+
 
             time.sleep(1)
     
@@ -343,7 +344,10 @@ class sitlSim():
         self.missionStart = True
 
         vi = self.myVehicleIndex
-        return make_uav(self.myVehicleIndex,
+        return make_uav(
+                    ASSET_TYPE,
+                    self.myVehicleIndex,
+                    -1,
                     vehicle[vi].location.global_relative_frame.lat, 
                     vehicle[vi].location.global_relative_frame.lon, 
                     vehicle[vi].location.global_frame.alt, 
@@ -359,17 +363,70 @@ class sitlSim():
         if msg['respAssetID'] in [0, self.uav.uavID]:
             self.gotNewMission = True
 
-            while self.waitToUpdate:
-                print "mission waiting"
-                time.sleep(1)
+            # while self.waitToUpdate:
+            #     print "mission waiting"
+            #     time.sleep(1)
             
             tmpAssetIDs = set(msg['target_system'])
 
             for assetID in tmpAssetIDs:
                 self.mission[assetID] = {}
                 
+                if assetID == self.uav.uavID:
+                    self.uav.currentSeqID = -1
+            
+            targetID = -1
+            targetVertex = -1
 
+            foundCurrent = False
+            for i in range(0, len(msg['target_system'])):
+                tmpCmd = msg['command'][i]
+                tmpParam2 = msg['param2'][i]
+                
+                if msg['target_system'][i] == self.uav.uavID:
+                    if not foundCurrent and msg['status'] >= 0:
+                        foundCurrent = True
+                        self.uav.currentSeqID = msg['seq'][i]
 
+                    self.hasMission = True
+
+                self.mission[msg['target_system'][i]][msg['seq'][i]] = make_mission(msg['target_component'][i], tmpCmd, msg['frame'][i], msg['current'][i], msg['status'][i], msg['autocontinue'][i], targetID, targetVertex, msg['param1'][i], tmpParam2, msg['param3'][i], msg['param4'][i], msg['param5'][i], msg['param6'][i], msg['param7'][i])
+
+            self.gotNewMission = False
+            self.updatingMission = False
+
+    def armAndTakeoff(self, targetAltMeters):
+        # Arm and Takeoff
+        vehicleIndex = self.myVehicleIndex
+        print ">> Pre-arm checks"
+        while not vehicle[vehicleIndex].is_armable:
+            print " Waiting for vehicle to initialise..."
+            time.sleep(0.5)
+
+        while not vehicle[vehicleIndex].mode.name=='GUIDED':
+            vehicle[vehicleIndex].mode = VehicleMode("GUIDED")
+        
+        print " Mode: %s" % vehicle[vehicleIndex].mode.name
+        
+        print ">> Disabling pre-arm checks"
+        vehicle[vehicleIndex].parameters["ARMING_CHECK"] = 0
+        time.sleep(0.5)
+
+        print ">> Arming motors"
+        vehicle[vehicleIndex].armed = True
+        while not vehicle[vehicleIndex].armed:
+            print " Waiting for arming..."
+            time.sleep(0.5)
+
+        print " Vehicle is armed: %s" % vehicle[vehicleIndex].armed
+
+        print "Taking off from current alt of %f to target alt of %f" % ((vehicle[vehicleIndex].location.global_relative_frame.alt, targetAltMeters))
+        vehicle[vehicleIndex].simple_takeoff(targetAltMeters)
+        
+        self.uav.goalAlt = targetAltMeters
+        self.uav.goalLat = self.uav.latHome
+        self.uav.goalLon = self.uav.lonHome 
+        self.uav.status = STATUS_TAKEOFF
 
 if __name__ == "__main__":
     sitlSim()
