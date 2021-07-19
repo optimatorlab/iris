@@ -16,11 +16,14 @@ function toggleFenceDiv(){
 
 function createFence(){
     document.getElementById("createFence").disabled = true;
+    document.getElementById("taskMessage").innerHTML = 'Click on map to outline geofence.\nRight click to finish.';
+    document.getElementById('taskdiv').style.display = 'block';
 
     var geofence = [];
     var lonLatArray = [];
     var mouseLon, mouseLat;
     var tmpLatLonLabel;
+    var latLonAlt = [];
 
     var nodes = [];
 
@@ -36,7 +39,7 @@ function createFence(){
     });
 
     boundaryLine = viewer.entities.add({
-        name : 'line',
+        name : 'Boundary Line',
         polyline : {
           positions : undefined,
           material : Cesium.Color.DARKVIOLET.withAlpha(0.8),
@@ -47,10 +50,10 @@ function createFence(){
     });
 
     dummyGuide = viewer.entities.add({
-		name : 'Dummy guide line to show mouse movement.',
+		name : 'Temp Line',
 		polyline : {
 			positions : undefined,
-			material : Cesium.Color.ROYALBLUE.withAlpha(0.5),
+			material : Cesium.Color.DARKVIOLET.withAlpha(0.5),
 			width : 5,
 			clampToGround : true,
 		},
@@ -62,7 +65,8 @@ function createFence(){
         polygon: {
             hierarchy: undefined,
             material: Cesium.Color.DARKVIOLET.withAlpha(0.3),
-            outline: false,
+            outline: true,
+            outlineColor: Cesium.Color.BlACK
         },
         show: false
     });
@@ -142,17 +146,30 @@ function createFence(){
 			// objectPositionsCleanup(utilType, latLonPositions);
 
 		}  else  {
-			fenceValue = "GEOFENCE = [";
-            for (var i =0; i<geofence.length; i++){
-                fenceValue += "[" + geofence[i].toString() + "],\n\t\t";
+            var positions = []
+            for (var i=0; i<geofence.length; i++){
+                positions.push(Cesium.Cartographic.fromDegrees(geofence[i][1], geofence[i][0]));
             }
-            fenceValue += "]"
-			document.getElementById('geofence').value = fenceValue;
+			var promise = Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, positions);
+			Cesium.when(promise, function(updatedPositions) {
+				for (var i = 0; i < geofence.length; i++)  {
+					geofence[i].push(positions[i].height);
+				}
+			});
+            promise.then(function(){
+                fenceValue = "GEOFENCE = [";
+                for (var i =0; i<geofence.length; i++){
+                    fenceValue += "[" + geofence[i].toString() + "],\n\t\t";
+                }
+                fenceValue += "]"
+                document.getElementById('geofence').value = fenceValue;
+            });
+            document.getElementById('taskdiv').style.display = 'none';
 		};
 		// Delete the temporary entity:
 		tmpLatLonLabel.label.show = false;
 		dummyGuide.show = false;
-
+        boundaryLine.show = false;
 	}, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 };
 

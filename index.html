@@ -81,6 +81,28 @@
         margin: 0;
         outline: none;	
       }
+      /* Top banner that periodically displays messages */
+      #taskdiv {
+        position: absolute;
+        color: white;		
+        background: rgba(42,42,42,0.8);
+        padding: 4px;
+        border-radius: 4px;
+        width: 100%;
+        top: 45px;
+        /*margin-left: auto;
+        margin-right: auto;*/
+        text-align: center;
+      }
+      /* More style info for paragraph within taskdiv */
+      .innertask {
+        color: white;
+        background: rgba(42,42,42,0.8);
+        padding: 4px;
+        border-radius: 4px;
+        text-align: center;		
+        display: inline-block;
+      }
     </style>
   </head>
   <body>
@@ -103,7 +125,10 @@
         <textarea readonly class="custom" id="geofence" rows="10" cols="50" style="display: block;margin-left: auto; margin-right: auto;"></textarea>
 			</table>
     </div>
-
+    
+    <div id="taskdiv" style="display:none;">
+      <p id="taskMessage" class="innerTask"></p>
+    </div>
 
     <script type="text/javascript">
       try {
