@@ -10,7 +10,7 @@ import sys
 
 vehicle      = {}
 BASE_PORT    = 5760
-ASSET_TYPE   = 'actualUAV' # 'SITLapm'
+ASSET_TYPE   = 'SITLapm' # 'SITLapm' or 'actualUAV'
 CONTROL_MODE = CTRL_MODE_GUIDED
 
 DEVICE = '/dev/ttyAMA0'
@@ -472,9 +472,9 @@ class sitlSim():
         
         print " Mode: %s" % vehicle[vehicleIndex].mode.name
         
-        print ">> Disabling pre-arm checks"
-        vehicle[vehicleIndex].parameters["ARMING_CHECK"] = 0
-        time.sleep(0.5)
+        # print ">> Disabling pre-arm checks"
+        # vehicle[vehicleIndex].parameters["ARMING_CHECK"] = 0
+        # time.sleep(0.5)
 
         print ">> Arming motors"
         vehicle[vehicleIndex].armed = True
