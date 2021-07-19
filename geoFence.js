@@ -1,6 +1,7 @@
 
 function toggleFenceDiv(){
     if (document.getElementById('fenceDiv').style.display == 'none') {
+        document.getElementById('fenceIcon').src = "boundary_on.png";
 
         document.getElementById('btnFenceDiv').style.width = '34px';
         document.getElementById('btnFenceDiv').style.borderTopRightRadius = '0px';
@@ -8,7 +9,7 @@ function toggleFenceDiv(){
 
         document.getElementById('fenceDiv').style.display = 'block';
     }else{
-
+        document.getElementById('fenceIcon').src = "boundary_off.png";
         document.getElementById('fenceDiv').style.display = 'none';
     }
 };
@@ -55,6 +56,16 @@ function createFence(){
 		},
 		show : false
 	});
+
+    boundingArea = viewer.entities.add({
+        name: "Bounding Area",
+        polygon: {
+            hierarchy: undefined,
+            material: Cesium.Color.DARKVIOLET.withAlpha(0.3),
+            outline: false,
+        },
+        show: false
+    });
 
     h1 = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 	h2 = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -108,6 +119,9 @@ function createFence(){
         if (nodes.length > 1){
             boundaryLine.polyline.positions = Cesium.Cartesian3.fromDegreesArray(lonLatArray);
             boundaryLine.show = true;
+
+            boundingArea.polygon.hierarchy = Cesium.Cartesian3.fromDegreesArray(lonLatArray);
+            boundingArea.show = true;
         };
 
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -133,7 +147,7 @@ function createFence(){
                 fenceValue += "[" + geofence[i].toString() + "],\n\t\t";
             }
             fenceValue += "]"
-			document.getElementById('geoFenceOutput').value = fenceValue;
+			document.getElementById('geofence').value = fenceValue;
 		};
 		// Delete the temporary entity:
 		tmpLatLonLabel.label.show = false;
@@ -141,3 +155,9 @@ function createFence(){
 
 	}, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 };
+
+function copyText(strText) {
+	var copyText = document.getElementById(strText);
+	copyText.select();
+	document.execCommand("copy");
+}

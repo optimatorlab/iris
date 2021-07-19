@@ -87,7 +87,7 @@
     <div id="cesiumContainer" class="fullsize"></div>
     <div id="leftMenuDiv" class="leftMenuContainer">
       <div id="btnFenceDiv" class="leftMenuBtnDiv">
-        <img src="boundary.png" onClick="toggleFenceDiv()" height=30px id="fenceIcon" title="GeoFence">
+        <img src="boundary_off.png" onClick="toggleFenceDiv()" height=30px id="fenceIcon" title="GeoFence">
       </div>
     </div>
 
@@ -98,9 +98,9 @@
       </td>
       <table id="tabFenceExport">
 				<tr>
-					<td><button id="btnFenceExport" onclick="copyText('bbox')" type="button"><NOBR>Copy to Clipboard</NOBR></button></td>
+					<td><button id="btnFenceExport" onclick="copyText('geofence')" type="button"><NOBR>Copy to Clipboard</NOBR></button></td>
 				</tr>
-        <textarea class="custom" id="geoFenceOutput" rows="10" cols="50" style="display: block;margin-left: auto; margin-right: auto;"></textarea>
+        <textarea readonly class="custom" id="geofence" rows="10" cols="50" style="display: block;margin-left: auto; margin-right: auto;"></textarea>
 			</table>
     </div>
 
