@@ -55,10 +55,10 @@
         border-top-right-radius: 4px;
         border-bottom-right-radius: 4px;
         position: absolute;
-        top: 120px;
+        top: 110px;
         left: 42px;
-        width: 350px;
-        max-height: 260px;
+        width: 300px;
+        max-height: 350px;
         overflow-y: auto;
         z-index: 4;	
         display: none;	
@@ -115,14 +115,24 @@
 
     <div id="fenceDiv" class="leftMenuDetailsDiv">
       <h4 class="subtitle">Create GeoFence</h4>
-      <td>
-        <button id="createFence" onClick="createFence()" type="button">Select Points</button>
-      </td>
+      <table id="fenceButtons">
+        <tr>
+          <td>
+            <button id="createFence" onClick="createFence()" type="button">Select Points</button>
+          </td>
+          <td>
+            <button id="saveFence" onClick="saveFence()" type="button" disabled>Save/Export</button> 
+          </td>
+          <td>
+            <button id="cancelFence" onClick="cancelFence()" type="button" disabled>Cancel</button> 
+          </td>
+        </tr>
+      </table>
       <table id="tabFenceExport">
 				<tr>
 					<td><button id="btnFenceExport" onclick="copyText('geofence')" type="button"><NOBR>Copy to Clipboard</NOBR></button></td>
 				</tr>
-        <textarea readonly class="custom" id="geofence" rows="10" cols="50" style="display: block;margin-left: auto; margin-right: auto;"></textarea>
+        <textarea readonly class="custom" id="geofence" rows="20" cols="45" style="display: block;margin-left: 0; margin-right: auto; resize:none;"></textarea>
 			</table>
     </div>
     
@@ -187,6 +197,49 @@
           pitch: -1.45,
           roll: 0.0,
         },
+      });
+      tmpLatLonLabel = viewer.entities.add({
+          label : {
+              show : false,
+              showBackground : true,
+              font : '10px monospace',
+              horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
+              verticalOrigin : Cesium.VerticalOrigin.TOP,
+              pixelOffset : new Cesium.Cartesian2(15, 0)
+          }
+      });
+
+      boundaryLine = viewer.entities.add({
+          name : 'Boundary Line',
+          polyline : {
+            positions : undefined,
+            material : Cesium.Color.DARKVIOLET.withAlpha(0.8),
+            width : 5,
+            clampToGround : true,
+          },
+          show : false
+      });
+
+      dummyGuide = viewer.entities.add({
+          name : 'Temp Line',
+          polyline : {
+              positions : undefined,
+              material : Cesium.Color.DARKVIOLET.withAlpha(0.5),
+              width : 5,
+              clampToGround : true,
+          },
+          show : false
+      });
+
+      tmpBoundingArea = viewer.entities.add({
+          name: "Bounding Area",
+          polygon: {
+              hierarchy: undefined,
+              material: Cesium.Color.DARKVIOLET.withAlpha(0.3),
+              outline: true,
+              outlineColor: Cesium.Color.BlACK
+          },
+          show: false
       });
     </script>
   </body>

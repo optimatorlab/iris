@@ -1,3 +1,21 @@
+var fenceNodes = [];
+var tmpFenceNodes = [];
+var boundingArea;
+
+class GeoFence {
+    constructor(name, hierarchy) {
+        this.name = name;
+        this.show = false;
+
+        this.polygon = {
+            hierarchy: hierarchy,
+            material: Cesium.Color.DARKVIOLET.withAlpha(0.3),
+            outline: true,
+            outlineColor: Cesium.Color.BlACK
+        };
+    }
+};
+
 
 function toggleFenceDiv(){
     if (document.getElementById('fenceDiv').style.display == 'none') {
@@ -15,61 +33,25 @@ function toggleFenceDiv(){
 };
 
 function createFence(){
+    tmpFenceNodes = [];
+
+    if (boundingArea) {
+        boundingArea.show = false;
+        document.getElementById('geofence').value = "";
+    }
+
     document.getElementById("createFence").disabled = true;
-    document.getElementById("taskMessage").innerHTML = 'Click on map to outline geofence.\nRight click to finish.';
+    document.getElementById('saveFence').disabled = false;
+    document.getElementById('cancelFence').disabled = false;
+    document.getElementById("taskMessage").innerHTML = 'Click on map to outline geofence.\nClick "save/export" or right click to finish.';
     document.getElementById('taskdiv').style.display = 'block';
 
-    var geofence = [];
+    // var geofence = [];
     var lonLatArray = [];
     var mouseLon, mouseLat;
-    var tmpLatLonLabel;
     var latLonAlt = [];
 
     var nodes = [];
-
-    var tmpLatLonLabel = viewer.entities.add({
-        label : {
-            show : false,
-            showBackground : true,
-            font : '10px monospace',
-            horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
-            verticalOrigin : Cesium.VerticalOrigin.TOP,
-            pixelOffset : new Cesium.Cartesian2(15, 0)
-        }
-    });
-
-    boundaryLine = viewer.entities.add({
-        name : 'Boundary Line',
-        polyline : {
-          positions : undefined,
-          material : Cesium.Color.DARKVIOLET.withAlpha(0.8),
-          width : 5,
-          clampToGround : true,
-        },
-        show : false
-    });
-
-    dummyGuide = viewer.entities.add({
-		name : 'Temp Line',
-		polyline : {
-			positions : undefined,
-			material : Cesium.Color.DARKVIOLET.withAlpha(0.5),
-			width : 5,
-			clampToGround : true,
-		},
-		show : false
-	});
-
-    boundingArea = viewer.entities.add({
-        name: "Bounding Area",
-        polygon: {
-            hierarchy: undefined,
-            material: Cesium.Color.DARKVIOLET.withAlpha(0.3),
-            outline: true,
-            outlineColor: Cesium.Color.BlACK
-        },
-        show: false
-    });
 
     h1 = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
 	h2 = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -111,21 +93,21 @@ function createFence(){
             position: Cesium.Cartesian3.fromDegrees(lastLon, lastLat),
             point : {
                 color : Cesium.Color.BLACK,
-                pixelSize : 8,
+                pixelSize : 5,
                 heightReference : Cesium.HeightReference.CLAMP_TO_GROUND
             },
             show: true
         }));
 
         lonLatArray.push(lastLon, lastLat);
-        geofence.push([lastLat, lastLon]);
+        tmpFenceNodes.push([lastLat, lastLon]);
 
         if (nodes.length > 1){
             boundaryLine.polyline.positions = Cesium.Cartesian3.fromDegreesArray(lonLatArray);
             boundaryLine.show = true;
 
-            boundingArea.polygon.hierarchy = Cesium.Cartesian3.fromDegreesArray(lonLatArray);
-            boundingArea.show = true;
+            tmpBoundingArea.polygon.hierarchy = Cesium.Cartesian3.fromDegreesArray(lonLatArray);
+            tmpBoundingArea.show = true;
         };
 
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -135,7 +117,7 @@ function createFence(){
 		h2 = h2 && h2.destroy();
 		h3 = h3 && h3.destroy();
 
-		if (geofence.length == 0)  {
+		if (tmpFenceNodes.length == 0)  {
 			// The user didn't select any points.
 
 			// Clear alt in object dialogue (if this field exists):
@@ -146,32 +128,78 @@ function createFence(){
 			// objectPositionsCleanup(utilType, latLonPositions);
 
 		}  else  {
-            var positions = []
-            for (var i=0; i<geofence.length; i++){
-                positions.push(Cesium.Cartographic.fromDegrees(geofence[i][1], geofence[i][0]));
-            }
-			var promise = Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, positions);
-			Cesium.when(promise, function(updatedPositions) {
-				for (var i = 0; i < geofence.length; i++)  {
-					geofence[i].push(positions[i].height);
-				}
-			});
-            promise.then(function(){
-                fenceValue = "GEOFENCE = [";
-                for (var i =0; i<geofence.length; i++){
-                    fenceValue += "[" + geofence[i].toString() + "],\n\t\t";
-                }
-                fenceValue += "]"
-                document.getElementById('geofence').value = fenceValue;
-            });
-            document.getElementById('taskdiv').style.display = 'none';
+            saveFence();
 		};
 		// Delete the temporary entity:
 		tmpLatLonLabel.label.show = false;
-		dummyGuide.show = false;
+		// viewer.entities.remove(dummyGuide);
+        dummyGuide.show = false;
         boundaryLine.show = false;
 	}, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 };
+
+function saveFence(){
+    var fenceInfo = new GeoFence('GeoFence', tmpBoundingArea.polygon.hierarchy);
+    
+    boundingArea = viewer.entities.add(fenceInfo);
+    boundingArea.show = true;
+    tmpBoundingArea.show = false;
+
+    fenceNodes = tmpFenceNodes;
+    var positions = []
+    for (var i=0; i<fenceNodes.length; i++){
+        positions.push(Cesium.Cartographic.fromDegrees(fenceNodes[i][1], fenceNodes[i][0]));
+    }
+    var promise = Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, positions);
+    Cesium.when(promise, function(updatedPositions) {
+        for (var i = 0; i < fenceNodes.length; i++)  {
+            fenceNodes[i].push(positions[i].height);
+        }
+    });
+    document.getElementById('geofence').value = "";
+    promise.then(function(){
+        writeGeoFence();
+    });
+    document.getElementById('taskdiv').style.display = 'none';
+    document.getElementById('saveFence').disabled = true;
+    document.getElementById('cancelFence').disabled = true;
+    document.getElementById('createFence').disabled = false;
+}
+
+function writeGeoFence(){
+    fenceValue = "GEOFENCE = [";
+    for (var i =0; i<fenceNodes.length; i++){
+        fenceValue += "[" + fenceNodes[i].toString() + "],\n\t\t";
+    }
+    fenceValue += "]"
+    document.getElementById('geofence').value = fenceValue;
+}
+
+function cancelFence(){
+    if (tmpLatLonLabel) {
+        tmpLatLonLabel.label.show = false;
+    }
+    if (boundaryLine) {
+        boundaryLine.show = false;
+    }
+    if (dummyGuide) {
+        dummyGuide.show = false;
+    }
+
+    if (boundingArea){
+        boundingArea.show = true;
+        tmpBoundingArea.show = false;
+        writeGeoFence();
+    }
+    h1.destroy();
+    h2.destroy();
+    h3.destroy();
+
+    document.getElementById('taskdiv').style.display = 'none';
+    document.getElementById('saveFence').disabled = true;
+    document.getElementById('cancelFence').disabled = true;
+    document.getElementById('createFence').disabled = false;
+}
 
 function copyText(strText) {
 	var copyText = document.getElementById(strText);
