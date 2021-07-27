@@ -6,12 +6,14 @@ import time
 from common import *
 from collections import defaultdict
 import sys
-
+import threading
+import rospy
 
 vehicle      = {}
 BASE_PORT    = 5760
-ASSET_TYPE   = 'SITLapm' # 'SITLapm' or 'actualUAV'
+ASSET_TYPE   = 'actualUAV' #  SITLapm
 CONTROL_MODE = CTRL_MODE_GUIDED
+MISSION_RATE = 5.0
 
 DEVICE = '/dev/ttyAMA0'
 BAUD = 921600
@@ -212,6 +214,16 @@ class sitlSim():
             if not self.hasMission:
                 time.sleep(1)
 
+        # monitor mission thread
+        print('Starting mission thread...')
+        missionThread = threading.Thread(target=self.monitorMission, args=(MISSION_RATE,))
+        missionThread.start()
+        print('DONE')
+    
+    def monitorMission(self, rate):
+        
+        # threadRate = rospy.Rate(rate)
+        vehicleIndex = self.myVehicleIndex
         while(True):
             
             # while self.changingMode:
@@ -310,9 +322,9 @@ class sitlSim():
                         self.uav.currentSeqID += 1
                         self.uav.status = STATUS_READY
 
-
             time.sleep(1)
-    
+            # threadRate.sleep()
+
     def createAsset(self, reqLat, reqLon, reqAlt, reqHeading):
         if ASSET_TYPE == 'actualUAV':
             self.connectReal()
@@ -472,9 +484,9 @@ class sitlSim():
         
         print " Mode: %s" % vehicle[vehicleIndex].mode.name
         
-        # print ">> Disabling pre-arm checks"
-        # vehicle[vehicleIndex].parameters["ARMING_CHECK"] = 0
-        # time.sleep(0.5)
+        print ">> Disabling pre-arm checks"
+        vehicle[vehicleIndex].parameters["ARMING_CHECK"] = 0
+        time.sleep(0.5)
 
         print ">> Arming motors"
         vehicle[vehicleIndex].armed = True
