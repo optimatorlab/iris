@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8">
+    <!-- Tell IE to use the latest, best version (or Chrome Frame if pre-IE11). -->
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+
+    <!-- ../Build/Cesium/Cesium.js -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.81/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.81/Build/Cesium/Widgets/widgets.css" rel="stylesheet"/>
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script> -->
+    <!--
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/5.6.0/math.js" type="text/javascript"></script>
+  -->
+    <script type="text/javascript" src="../keys/keys.js"></script>
+    <script type="text/javascript" src="geoFence.js"></script>
+    <style>
+      /* Background Cesium content */
+      #cesiumContainer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        overflow: hidden;
+        padding: 0;
+        font-family: sans-serif;
+      }
+      .leftMenuContainer {
+        /*padding: 4px; */
+        position: absolute;
+        top: 110px;
+        left: 0px;
+        width: 30px;
+        z-index: 4;		
+      }
+      /* Style for individual left menu buttons */
+      .leftMenuBtnDiv {
+        background: rgba(42,42,42,0.9);
+        padding: 4px;
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+        margin-bottom: 4px;
+        width: 30px;
+        max-height: 30px;	
+      }
+      /* Style for left menu details */
+      .leftMenuDetailsDiv {
+        background: rgba(42,42,42,0.9);
+        padding: 4px;
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+        position: absolute;
+        top: 110px;
+        left: 42px;
+        width: 300px;
+        max-height: 350px;
+        overflow-y: auto;
+        z-index: 4;	
+        display: none;	
+      }
+      h4.subtitle {
+        font-size: 15px;
+        color: white;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-top: 4px;
+        margin-bottom: 2px;
+        /* margin-right: 150px; */
+        margin-left: 2px;
+      
+      }
+      textarea.custom {
+        background-color : #525354;
+        color: white; 
+        font-size: 11px;
+        margin: 0;
+        outline: none;	
+      }
+      /* Top banner that periodically displays messages */
+      #taskdiv {
+        position: absolute;
+        color: white;		
+        background: rgba(42,42,42,0.8);
+        padding: 4px;
+        border-radius: 4px;
+        width: 100%;
+        top: 45px;
+        /*margin-left: auto;
+        margin-right: auto;*/
+        text-align: center;
+      }
+      /* More style info for paragraph within taskdiv */
+      .innertask {
+        color: white;
+        background: rgba(42,42,42,0.8);
+        padding: 4px;
+        border-radius: 4px;
+        text-align: center;		
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="cesiumContainer" class="fullsize"></div>
+    <div id="leftMenuDiv" class="leftMenuContainer">
+      <div id="btnFenceDiv" class="leftMenuBtnDiv">
+        <img src="boundary_off.png" onClick="toggleFenceDiv()" height=30px id="fenceIcon" title="GeoFence">
+      </div>
+    </div>
+
+    <div id="fenceDiv" class="leftMenuDetailsDiv">
+      <h4 class="subtitle">Create GeoFence</h4>
+      <table id="fenceButtons">
+        <tr>
+          <td>
+            <button id="createFence" onClick="createFence()" type="button">Select Points</button>
+          </td>
+          <td>
+            <button id="saveFence" onClick="saveFence()" type="button" disabled>Save/Export</button> 
+          </td>
+          <td>
+            <button id="cancelFence" onClick="cancelFence()" type="button" disabled>Cancel</button> 
+          </td>
+        </tr>
+      </table>
+      <table id="tabFenceExport">
+				<tr>
+					<td><button id="btnFenceExport" onclick="copyText('geofence')" type="button"><NOBR>Copy to Clipboard</NOBR></button></td>
+				</tr>
+        <textarea readonly class="custom" id="geofence" rows="20" cols="45" style="display: block;margin-left: 0; margin-right: auto; resize:none;"></textarea>
+			</table>
+    </div>
+    
+    <div id="taskdiv" style="display:none;">
+      <p id="taskMessage" class="innerTask"></p>
+    </div>
+
+    <script type="text/javascript">
+      try {
+        Cesium.Ion.defaultAccessToken = ionKey;
+      }  catch (err)  {
+        alert("Missing Cesium Ion Key");
+        console.log(err);
+      }
+      var viewLocation = {lat: 42.995482, lon: -78.796945};
+      var lonLatArray = [];
+      var h1;
+
+      // var cesiumTerrainProvider = Cesium.createWorldTerrain();
+      var cesiumTerrainProvider = new Cesium.CesiumTerrainProvider({
+        url: Cesium.IonResource.fromAssetId(1),
+        requestVertexNormals: true,
+      });
+
+      var ellipsoidTerrainProvider = new Cesium.EllipsoidTerrainProvider();
+
+      var viewer = new Cesium.Viewer("cesiumContainer", {
+        infoBox: false,
+        vrButton: false,
+        animation: false,
+        timeline: false,
+        geocoder: false,
+        homeButton: false,
+        infoBox: true,
+        sceneModePicker: false,
+        navigationHelpButton: false,
+        imageryProvider: false,
+        //imageryProvider: false,
+        //baseLayerPicker: false,
+        navigationInstructionsInitiallyVisible: false, //,
+        terrainProvider: cesiumTerrainProvider, // Cesium.createWorldTerrain()  	FIXME -- This is making our targets appear underground.  We need to specify altMSL.
+      });
+
+      viewer.extend(Cesium.viewerDragDropMixin);
+      var scene = viewer.scene;
+      let canvas = scene.canvas;
+
+      // Load Pins:
+      var pinBuilder = new Cesium.PinBuilder();
+
+      // Initialize pin counter:
+      var pinNumber = 0;
+
+      scene.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(
+          viewLocation.lon,
+          viewLocation.lat,
+          1000
+        ), //sensorPos,
+        orientation: {
+          heading: 0.0,
+          pitch: -1.45,
+          roll: 0.0,
+        },
+      });
+      tmpLatLonLabel = viewer.entities.add({
+          label : {
+              show : false,
+              showBackground : true,
+              font : '10px monospace',
+              horizontalOrigin : Cesium.HorizontalOrigin.LEFT,
+              verticalOrigin : Cesium.VerticalOrigin.TOP,
+              pixelOffset : new Cesium.Cartesian2(15, 0)
+          }
+      });
+
+      boundaryLine = viewer.entities.add({
+          name : 'Boundary Line',
+          polyline : {
+            positions : undefined,
+            material : Cesium.Color.DARKVIOLET.withAlpha(0.8),
+            width : 5,
+            clampToGround : true,
+          },
+          show : false
+      });
+
+      dummyGuide = viewer.entities.add({
+          name : 'Temp Line',
+          polyline : {
+              positions : undefined,
+              material : Cesium.Color.DARKVIOLET.withAlpha(0.5),
+              width : 5,
+              clampToGround : true,
+          },
+          show : false
+      });
+
+      tmpBoundingArea = viewer.entities.add({
+          name: "Bounding Area",
+          polygon: {
+              hierarchy: undefined,
+              material: Cesium.Color.DARKVIOLET.withAlpha(0.3),
+              outline: true,
+              outlineColor: Cesium.Color.BlACK
+          },
+          show: false
+      });
+    </script>
+  </body>
+</html>
